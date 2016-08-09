@@ -6,6 +6,8 @@
  * Allow configuration of priorities for games, based on name, genre, etc
  * Use Nightmare to login and enter the Giveaways (JS is required for clicking on the ticket)
  *
+ * Main giveaway page requires JS but individual pages seem to work with just request
+ *
  * @author   John Tribolet <john@tribolet.info>
  * @created  2016-08-08 11:22
  */
@@ -13,6 +15,7 @@
 'use strict';
 
 const Nightmare = require('nightmare');
+const async      = require('async');
 const request    = require('request');
 const cheerio    = require('cheerio');
 const sqlite3    = require('sqlite3').verbose();
@@ -44,27 +47,42 @@ function parseGameLinks() {
     });
 }
 
-nmInst
-    .goto(giveawayUrl)
-    .wait('.giveaways-main-page')
-    .evaluate(function() {
-        var links = document.querySelectorAll('.ticket-info-cont h2 a');
-
-        return Array.prototype.map.call(links, function (e) {
-            return e.getAttribute('href');
-        });
-    })
-    .then((links) => {
-        console.log(links);
-    })
-    .then(() => {
-        return nmInst
-            .click(nextSelector)
+// parse giveaway pages
+const pagesToParse = 5;
+async.timesSeries(pagesToParse, (n, next) => {
+    console.log(n);
+    // timesSeries is zero-based, the links are 1 based so skip
+    if (0 === n) {
+        next(null, []);
+    }
+    else {
+        const thisPage = baseUrl + '/giveaways/' + n + '/expiry/asc/level/all';
+        nmInst
+            .goto(thisPage)
+            .wait('.giveaways-main-page')
             .evaluate(parseGameLinks)
-    })
-    .then((links) => {
-        console.log('Page 2 Links');
-        console.log(links);
-    })
-    .catch((err) => console.error('Error on main page: ' + error));
+            .then((links) => {
+                // console.log(links);
+                console.log('Finished ' + thisPage);
+                next(null, links);
+            })
+            .catch((err) => console.error('Error on main page: ' + error));
+    }
+
+}, (err, allLinks) => {
+    if (err) {
+        console.error(err);
+        return;
+    }
+    // should have all links here
+
+    let flatLinks = [].concat.apply([], allLinks);
+    console.log(flatLinks);
+
+    // can't close Nightmare?
+    // nmInst = Nightmare(nightmareConfig);
+    // nmInst.goto(baseUrl).end();
+});
+
+
 
