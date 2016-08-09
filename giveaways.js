@@ -51,12 +51,15 @@ function processGiveawayPages(links) {
         request(giveawayUrl, (err, resp, body) => {
             const $ = cheerio.load(body);
 
+            let found = body.match(/new Date\(Date\.UTC.*;/g);
+            let getEndDate = new Function('return ' + found[0]);
+
             let giveaway = {
                 "id":       $('.ticket-right .relative').attr('rel'),
                 "name":     $('.ticket-info-cont h2').text(),
                 "steam":    $('.ticket-info-cont .steam-link').attr('href'),
                 "price":    $('.ticket-left .ticket-price strong').text(),
-                "timeLeft": $('#minutes').text() + ':' + $('#seconds').text(),
+                "endDate":  $('#minutes').html() + ':' + $('#seconds').text(),
                 "level":    $('.type-level-cont').text().trim()
             };
 
@@ -72,13 +75,12 @@ function processGiveawayPages(links) {
             // console.log(giveaway);
             next();
 
-            }, (err) => {
-                // all finished
-                console.log('Giveaway Links Processed');
-                insertGiveaway.finalize();
-                db.close();
-            }
-        );
+        });
+    }, (err) => {
+        // all finished
+        console.log('Giveaway Links Processed');
+        insertGiveaway.finalize();
+        db.close();
     });
 }
 
@@ -92,7 +94,7 @@ function parseGameLinks() {
 }
 
 // parse giveaway pages
-const pagesToParse = 2;
+const pagesToParse = 3;
 async.timesSeries(pagesToParse, (n, next) => {
     console.log(n);
     // timesSeries is zero-based, the links are 1 based so skip
