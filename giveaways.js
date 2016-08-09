@@ -8,6 +8,8 @@
  *
  * Main giveaway page requires JS but individual pages seem to work with just request
  *
+ * Probably going to need to have 2 parts running, the parser and the runner
+ *
  * @author   John Tribolet <john@tribolet.info>
  * @created  2016-08-08 11:22
  */
@@ -34,6 +36,26 @@ const nightmareConfig = {
 // setup sqlite3 db
 
 
+// process giveaway pages /w request
+function processGiveawayPages(links) {
+    let link = links[0];
+
+    let giveawayUrl = baseUrl + link;
+    request(giveawayUrl, (err, resp, body) => {
+        const $ = cheerio.load(body);
+
+        let giveaway = {
+            "id":       $('.ticket-right .relative').attr('rel'),
+            "name":     $('.ticket-info-cont h2').text(),
+            "steam":    $('.ticket-info-cont .steam-link').attr('href'),
+            "price":    $('.ticket-left .ticket-price strong').text(),
+            "timeLeft": $('#minutes').text() + ':' + $('#seconds').text(),
+            "level":    $('.type-level-cont').text().trim()
+        };
+
+        console.log(giveaway);
+    });
+}
 
 // parse games
 const nextSelector = '.page-nav > div:nth-child(7) > a';
@@ -48,7 +70,7 @@ function parseGameLinks() {
 }
 
 // parse giveaway pages
-const pagesToParse = 5;
+const pagesToParse = 2;
 async.timesSeries(pagesToParse, (n, next) => {
     console.log(n);
     // timesSeries is zero-based, the links are 1 based so skip
@@ -77,7 +99,9 @@ async.timesSeries(pagesToParse, (n, next) => {
     // should have all links here
 
     let flatLinks = [].concat.apply([], allLinks);
-    console.log(flatLinks);
+    // console.log(flatLinks);
+
+    processGiveawayPages(flatLinks);
 
     // can't close Nightmare?
     // nmInst = Nightmare(nightmareConfig);
