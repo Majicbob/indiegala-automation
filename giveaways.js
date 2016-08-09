@@ -26,40 +26,62 @@ const baseUrl     = 'https://www.indiegala.com';
 const giveawayUrl = baseUrl + '/giveaways';
 
 const chromeUA    = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
-// const db          = new sqlite3.Database('db.sqlite3');
 
 const nightmareConfig = {
     show: true,
     fullscreen: false
 };
+let nmInst = Nightmare(nightmareConfig);
 
 // setup sqlite3 db
+const db          = new sqlite3.Database('db.sqlite3');
+
+db.serialize(() => {
+    db.run("CREATE TABLE IF NOT EXISTS `giveaways` ( `id` INTEGER, `name` INTEGER, `steam` TEXT, `price` NUMERIC, `timeLeft` TEXT, PRIMARY KEY(id) );");
+
+});
 
 
 // process giveaway pages /w request
 function processGiveawayPages(links) {
-    let link = links[0];
+    const insertGiveaway = db.prepare('INSERT INTO giveaways VALUES (?, ?, ?, ?, ?)');
 
-    let giveawayUrl = baseUrl + link;
-    request(giveawayUrl, (err, resp, body) => {
-        const $ = cheerio.load(body);
+    async.each(links, (link, next) => {
+        let giveawayUrl = baseUrl + link;
+        request(giveawayUrl, (err, resp, body) => {
+            const $ = cheerio.load(body);
 
-        let giveaway = {
-            "id":       $('.ticket-right .relative').attr('rel'),
-            "name":     $('.ticket-info-cont h2').text(),
-            "steam":    $('.ticket-info-cont .steam-link').attr('href'),
-            "price":    $('.ticket-left .ticket-price strong').text(),
-            "timeLeft": $('#minutes').text() + ':' + $('#seconds').text(),
-            "level":    $('.type-level-cont').text().trim()
-        };
+            let giveaway = {
+                "id":       $('.ticket-right .relative').attr('rel'),
+                "name":     $('.ticket-info-cont h2').text(),
+                "steam":    $('.ticket-info-cont .steam-link').attr('href'),
+                "price":    $('.ticket-left .ticket-price strong').text(),
+                "timeLeft": $('#minutes').text() + ':' + $('#seconds').text(),
+                "level":    $('.type-level-cont').text().trim()
+            };
 
-        console.log(giveaway);
+            insertGiveaway.run(
+                giveaway.id,
+                giveaway.name,
+                giveaway.steam,
+                giveaway.price,
+                giveaway.timeLeft,
+                (err) => { }
+            );
+
+            // console.log(giveaway);
+            next();
+
+            }, (err) => {
+                // all finished
+                console.log('Giveaway Links Processed');
+                insertGiveaway.finalize();
+                db.close();
+            }
+        );
     });
 }
 
-// parse games
-const nextSelector = '.page-nav > div:nth-child(7) > a';
-let nmInst = Nightmare(nightmareConfig);
 
 function parseGameLinks() {
     var links = document.querySelectorAll('.ticket-info-cont h2 a');
