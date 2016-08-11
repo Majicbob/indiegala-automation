@@ -72,7 +72,7 @@ function processGiveawayPages(links) {
             // get end date from thier JS and convert to unix ts
             let endTime    = -1;
             let found      = body.match(/new Date\(Date\.UTC.*;/g);
-            if (found.length) {
+            if (null !== found) {
                 let getEndTime = new Function('return ' + found[0]);
                 endTime    = Math.round(getEndTime().getTime() / 1000);
             }
@@ -114,10 +114,11 @@ function processGiveawayPages(links) {
         console.log('Giveaway Links Processed');
 
         // insertGiveaway.finalize();
-        db.close();
+        // db.close();
 
-        /** @todo Find out why this doesn't close the Nightmare instance. */
-        nmInst.end();
+        /** @todo Find out why this doesn't close the Nightmare instance. It will close it
+                  when this is called for each page instead of all combined pages. */
+        // nmInst.end();
     });
 }
 
@@ -149,7 +150,7 @@ async.timesSeries(pagesToParse, (n, next) => {
             .evaluate(parseGameLinks)
             .then((links) => {
                 // console.log(links);
-                // processGiveawayPages(links);
+                processGiveawayPages(links);
                 console.log('Finished ' + thisPage);
                 next(null, links);
             })
@@ -164,7 +165,12 @@ async.timesSeries(pagesToParse, (n, next) => {
 
     const flatLinks = [].concat.apply([], allLinks);
 
-    processGiveawayPages(flatLinks);
+    // processGiveawayPages(flatLinks);
+
+    insertGiveaway.finalize(() => db.close());
+
+
+    setTimeout(() => nmInst.end(), 3000);
 
     // can't close Nightmare?
     // nmInst = Nightmare(nightmareConfig);
