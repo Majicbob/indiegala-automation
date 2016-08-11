@@ -16,23 +16,30 @@
 
 'use strict';
 
-const Nightmare = require('nightmare');
-const async      = require('async');
-const request    = require('request');
-const cheerio    = require('cheerio');
-const sqlite3    = require('sqlite3').verbose();
+// modules
+const Nightmare   = require('nightmare');
+const async       = require('async');
+const request     = require('request');
+const cheerio     = require('cheerio');
+const sqlite3     = require('sqlite3').verbose();
 
+// config / globals
 const baseUrl     = 'https://www.indiegala.com';
-const giveawayUrl = baseUrl + '/giveaways';
 
-const chromeUA    = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36';
+const chromeUA    = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko)' +
+                    ' Chrome/51.0.2704.103 Safari/537.36';
 
 const nightmareConfig = {
     show: true,
     fullscreen: false
 };
 let nmInst = Nightmare(nightmareConfig);
+nmInst.useragent(chromeUA);
 
+/**
+ * The number of giveaway listing pages to parse. There are 12 giveaways per page.
+ * @type {number}
+ */
 const pagesToParse = 20;
 
 // setup sqlite3 db
@@ -40,19 +47,26 @@ const db          = new sqlite3.Database('db.sqlite3');
 
 db.serialize(() => {
     db.run(
-        "CREATE TABLE IF NOT EXISTS `giveaways` ( `id` INTEGER, `name` TEXT, " +
-        "`steam` TEXT, `price` NUMERIC, `endDate` INTEGER, PRIMARY KEY(id) );");
+        'CREATE TABLE IF NOT EXISTS `giveaways` ( `id` INTEGER, `name` TEXT, ' +
+        '`steam` TEXT, `price` NUMERIC, `endDate` INTEGER, PRIMARY KEY(id) );');
 
 });
 
 
-// process giveaway pages /w request
+/**
+ * Process giveaway pages using Request/Cheerio to grab data and store in DB.
+ * @param {string[]} links  Relative links to individual giveaways
+ */
 function processGiveawayPages(links) {
     const insertGiveaway = db.prepare('INSERT INTO giveaways VALUES (?, ?, ?, ?, ?)');
 
     async.each(links, (link, next) => {
-        let giveawayUrl = baseUrl + link;
+        const giveawayUrl = baseUrl + link;
         request(giveawayUrl, (err, resp, body) => {
+            if (err) {
+                console.error('Error loading giveaway url: \n' + err);
+                next(err);
+            }
             const $        = cheerio.load(body);
 
             // get end date from thier JS and convert to unix ts
@@ -64,12 +78,12 @@ function processGiveawayPages(links) {
             }
 
             let giveaway = {
-                "id":       $('.ticket-right .relative').attr('rel'),
-                "name":     $('.ticket-info-cont h2').text(),
-                "steam":    $('.ticket-info-cont .steam-link').attr('href'),
-                "price":    $('.ticket-left .ticket-price strong').text(),
-                "endDate":  endTime,
-                "level":    $('.type-level-cont').text().trim()
+                'id':       $('.ticket-right .relative').attr('rel'),
+                'name':     $('.ticket-info-cont h2').text(),
+                'steam':    $('.ticket-info-cont .steam-link').attr('href'),
+                'price':    $('.ticket-left .ticket-price strong').text(),
+                'endDate':  endTime,
+                'level':    $('.type-level-cont').text().trim()
             };
 
             insertGiveaway.run(
@@ -78,11 +92,11 @@ function processGiveawayPages(links) {
                 giveaway.steam,
                 giveaway.price,
                 giveaway.endDate,
-                (err) => {
-                    if (err) {
+                (insertErr) => {
+                    if (insertErr) {
                         // ignore PK insert errors
-                        if (! err.message.includes('UNIQUE constraint failed')) {
-                            console.error(err);
+                        if (! insertErr.message.includes('UNIQUE constraint failed')) {
+                            console.error(insertErr);
                         }
                     }
                 }
@@ -94,24 +108,32 @@ function processGiveawayPages(links) {
         });
     }, (err) => {
         // all finished
+        if (err) {
+            console.error(err);
+        }
         console.log('Giveaway Links Processed');
-        insertGiveaway.finalize();
+
+        // insertGiveaway.finalize();
         db.close();
 
+        /** @todo Find out why this doesn't close the Nightmare instance. */
         nmInst.end();
     });
 }
 
-
+/**
+ * Scrape the links to individual game links. This is run in Nightmare/Electron.
+ */
 function parseGameLinks() {
+    // eslint-disable-next-line no-var, no-undef
     var links = document.querySelectorAll('.ticket-info-cont h2 a');
 
-    return Array.prototype.map.call(links, function (e) {
+    return Array.prototype.map.call(links, function(e) {
         return e.getAttribute('href');
     });
 }
 
-// parse giveaway pages
+
 
 async.timesSeries(pagesToParse, (n, next) => {
     console.log(n);
@@ -131,7 +153,7 @@ async.timesSeries(pagesToParse, (n, next) => {
                 console.log('Finished ' + thisPage);
                 next(null, links);
             })
-            .catch((err) => console.error('Error on main page: ' + error));
+            .catch((err) => console.error('Nightmare error loading giveaway list page: ' + err));
     }
 
 }, (err, allLinks) => {
@@ -139,10 +161,8 @@ async.timesSeries(pagesToParse, (n, next) => {
         console.error(err);
         return;
     }
-    // should have all links here
 
-    let flatLinks = [].concat.apply([], allLinks);
-    // console.log(flatLinks);
+    const flatLinks = [].concat.apply([], allLinks);
 
     processGiveawayPages(flatLinks);
 
