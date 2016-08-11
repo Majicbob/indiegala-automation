@@ -33,11 +33,15 @@ const nightmareConfig = {
 };
 let nmInst = Nightmare(nightmareConfig);
 
+const pagesToParse = 20;
+
 // setup sqlite3 db
 const db          = new sqlite3.Database('db.sqlite3');
 
 db.serialize(() => {
-    db.run("CREATE TABLE IF NOT EXISTS `giveaways` ( `id` INTEGER, `name` INTEGER, `steam` TEXT, `price` NUMERIC, `timeLeft` TEXT, PRIMARY KEY(id) );");
+    db.run(
+        "CREATE TABLE IF NOT EXISTS `giveaways` ( `id` INTEGER, `name` TEXT, " +
+        "`steam` TEXT, `price` NUMERIC, `endDate` INTEGER, PRIMARY KEY(id) );");
 
 });
 
@@ -49,17 +53,22 @@ function processGiveawayPages(links) {
     async.each(links, (link, next) => {
         let giveawayUrl = baseUrl + link;
         request(giveawayUrl, (err, resp, body) => {
-            const $ = cheerio.load(body);
+            const $        = cheerio.load(body);
 
-            let found = body.match(/new Date\(Date\.UTC.*;/g);
-            let getEndDate = new Function('return ' + found[0]);
+            // get end date from thier JS and convert to unix ts
+            let endTime    = -1;
+            let found      = body.match(/new Date\(Date\.UTC.*;/g);
+            if (found.length) {
+                let getEndTime = new Function('return ' + found[0]);
+                endTime    = Math.round(getEndTime().getTime() / 1000);
+            }
 
             let giveaway = {
                 "id":       $('.ticket-right .relative').attr('rel'),
                 "name":     $('.ticket-info-cont h2').text(),
                 "steam":    $('.ticket-info-cont .steam-link').attr('href'),
                 "price":    $('.ticket-left .ticket-price strong').text(),
-                "endDate":  $('#minutes').html() + ':' + $('#seconds').text(),
+                "endDate":  endTime,
                 "level":    $('.type-level-cont').text().trim()
             };
 
@@ -68,8 +77,15 @@ function processGiveawayPages(links) {
                 giveaway.name,
                 giveaway.steam,
                 giveaway.price,
-                giveaway.timeLeft,
-                (err) => { }
+                giveaway.endDate,
+                (err) => {
+                    if (err) {
+                        // ignore PK insert errors
+                        if (! err.message.includes('UNIQUE constraint failed')) {
+                            console.error(err);
+                        }
+                    }
+                }
             );
 
             // console.log(giveaway);
@@ -81,6 +97,8 @@ function processGiveawayPages(links) {
         console.log('Giveaway Links Processed');
         insertGiveaway.finalize();
         db.close();
+
+        nmInst.end();
     });
 }
 
@@ -94,7 +112,7 @@ function parseGameLinks() {
 }
 
 // parse giveaway pages
-const pagesToParse = 3;
+
 async.timesSeries(pagesToParse, (n, next) => {
     console.log(n);
     // timesSeries is zero-based, the links are 1 based so skip
@@ -109,6 +127,7 @@ async.timesSeries(pagesToParse, (n, next) => {
             .evaluate(parseGameLinks)
             .then((links) => {
                 // console.log(links);
+                // processGiveawayPages(links);
                 console.log('Finished ' + thisPage);
                 next(null, links);
             })
