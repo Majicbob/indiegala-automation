@@ -40,7 +40,7 @@ nmInst.useragent(chromeUA);
  * The number of giveaway listing pages to parse. There are 12 giveaways per page.
  * @type {number}
  */
-const pagesToParse = 20;
+const pagesToParse = 40;
 
 // setup sqlite3 db
 const db          = new sqlite3.Database('db.sqlite3');
@@ -48,7 +48,8 @@ const db          = new sqlite3.Database('db.sqlite3');
 db.serialize(() => {
     db.run(
         'CREATE TABLE IF NOT EXISTS `giveaways` ( `id` INTEGER, `name` TEXT, ' +
-        '`steam` TEXT, `price` NUMERIC, `endDate` INTEGER, PRIMARY KEY(id) );');
+        '`steamUrl` TEXT, `price` NUMERIC, `endDate` INTEGER, `steamId` INTEGER, ' +
+        'PRIMARY KEY(id) );');
 
 });
 
@@ -58,7 +59,7 @@ db.serialize(() => {
  * @param {string[]} links  Relative links to individual giveaways
  */
 function processGiveawayPages(links) {
-    const insertGiveaway = db.prepare('INSERT INTO giveaways VALUES (?, ?, ?, ?, ?)');
+    const insertGiveaway = db.prepare('INSERT INTO giveaways VALUES (?, ?, ?, ?, ?, ?)');
 
     async.each(links, (link, next) => {
         const giveawayUrl = baseUrl + link;
@@ -77,21 +78,30 @@ function processGiveawayPages(links) {
                 endTime    = Math.round(getEndTime().getTime() / 1000);
             }
 
+            let steamUrl = $('.ticket-info-cont .steam-link').attr('href');
+            if (steamUrl.endsWith('/')) {
+                steamUrl = steamUrl.slice(0, -1);
+            }
+
+            let steamId = steamUrl.substring(steamUrl.lastIndexOf('/') + 1);
+
             let giveaway = {
                 'id':       $('.ticket-right .relative').attr('rel'),
                 'name':     $('.ticket-info-cont h2').text(),
-                'steam':    $('.ticket-info-cont .steam-link').attr('href'),
+                'steamUrl': steamUrl,
                 'price':    $('.ticket-left .ticket-price strong').text(),
                 'endDate':  endTime,
-                'level':    $('.type-level-cont').text().trim()
+                'level':    $('.type-level-cont').text().trim(),
+                'steamId':  steamId
             };
 
             insertGiveaway.run(
                 giveaway.id,
                 giveaway.name,
-                giveaway.steam,
+                giveaway.steamUrl,
                 giveaway.price,
                 giveaway.endDate,
+                giveaway.steamId,
                 (insertErr) => {
                     if (insertErr) {
                         // ignore PK insert errors
@@ -111,7 +121,6 @@ function processGiveawayPages(links) {
         if (err) {
             console.error(err);
         }
-        console.log('Giveaway Links Processed');
 
         // insertGiveaway.finalize();
         // db.close();
@@ -137,7 +146,6 @@ function parseGameLinks() {
 
 
 async.timesSeries(pagesToParse, (n, next) => {
-    console.log(n);
     // timesSeries is zero-based, the links are 1 based so skip
     if (0 === n) {
         next(null, []);
