@@ -46,6 +46,7 @@ const selectSql = 'SELECT DISTINCT steamUrl, steamId ' +
     'AND steamId NOT IN (SELECT DISTINCT steamId FROM games) ';
 
 db.each(selectSql, (err, row) => {
+
     request(row.steamUrl, (err, resp, body) => {
         if (err) {
             console.error('Error loading Steam url: \n' + err);
@@ -55,14 +56,14 @@ db.each(selectSql, (err, row) => {
 
         const $ = cheerio.load(body);
         const game = {
-            reviewText: $('.game_review_summary').first().text(),
+            reviewText:  $('.game_review_summary').first().text(),
             reviewStats: $('.user_reviews_summary_row').attr('data-store-tooltip'),
-            genre: $('div.breadcrumbs > div.blockbg > a:nth-child(2)').text(),
-            metascore: $('#game_area_metascore > span:nth-child(1)').text(),
-            tag1: $('.popular_tags > a:nth-child(1)').text().trim(),
-            tag2: $('.popular_tags > a:nth-child(2)').text().trim(),
-            tag3: $('.popular_tags > a:nth-child(3)').text().trim(),
-            shortDesc: $('.game_description_snippet').text().trim()
+            genre:       $('div.breadcrumbs > div.blockbg > a:nth-child(2)').text(),
+            metascore:   $('#game_area_metascore > span:nth-child(1)').text(),
+            tag1:        $('.popular_tags > a:nth-child(1)').text().trim(),
+            tag2:        $('.popular_tags > a:nth-child(2)').text().trim(),
+            tag3:        $('.popular_tags > a:nth-child(3)').text().trim(),
+            shortDesc:   $('.game_description_snippet').text().trim()
 
         };
 
@@ -90,7 +91,14 @@ db.each(selectSql, (err, row) => {
         // process.exit();
 
     });
+
 }, (err, numRows) => {
+    console.log('Num Rows: ' + numRows);
+    if (err) {
+        console.error('Error: \n' + err);
+    }
     // all rows processed
-    db.close();
+    // insertGame.finalize(() => {
+        // db.close();
+    // })
 } );
