@@ -49,6 +49,7 @@ db.serialize(() => {
     db.run(
         'CREATE TABLE IF NOT EXISTS `giveaways` ( `id` INTEGER, `name` TEXT, ' +
         '`steamUrl` TEXT, `price` NUMERIC, `endDate` INTEGER, `steamId` INTEGER, ' +
+        '`entered`	INTEGER DEFAULT 0,' +
         'PRIMARY KEY(id) );');
 
 });
@@ -59,7 +60,9 @@ db.serialize(() => {
  * @param {string[]} links  Relative links to individual giveaways
  */
 function processGiveawayPages(links) {
-    const insertGiveaway = db.prepare('INSERT INTO giveaways VALUES (?, ?, ?, ?, ?, ?)');
+    const insertGiveaway = db.prepare(
+        'INSERT INTO giveaways (id, name, steamUrl, price, endDate, steamId) ' +
+        'VALUES (?, ?, ?, ?, ?, ?)');
 
     async.each(links, (link, next) => {
         const giveawayUrl = baseUrl + link;
@@ -162,12 +165,16 @@ async.timesSeries(pagesToParse, (n, next) => {
                 console.log('Finished ' + thisPage);
                 next(null, links);
             })
-            .catch((err) => console.error('Nightmare error loading giveaway list page: ' + err));
+            .catch((err) => {
+                console.error('Nightmare error loading giveaway list page: ' + err);
+                next(err, links);
+            });
     }
 
 }, (err, allLinks) => {
+    console.log('All finished from timesSeries');
     if (err) {
-        console.error(err);
+        console.error('All Finished Error: ' + err);
         return;
     }
 
@@ -175,10 +182,20 @@ async.timesSeries(pagesToParse, (n, next) => {
 
     // processGiveawayPages(flatLinks);
 
-    insertGiveaway.finalize(() => db.close());
+    insertGiveaway.finalize(() => {
+        db.close();
+        console.log('Call nm.end and Process.exit');
+        nmInst.end();
+        process.exit();
+    });
 
 
-    setTimeout(() => nmInst.end(), 3000);
+    setTimeout(() => {
+        // not firing?
+        console.log('Call Process.exit');
+        nmInst.end();
+        process.exit();
+    }, 3000);
 
     // can't close Nightmare?
     // nmInst = Nightmare(nightmareConfig);
