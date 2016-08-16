@@ -1,0 +1,30 @@
+{
+  "name": "indiegala-automation",
+  "version": "0.1.0",
+  "description": "Automation of IndieGala Giveaways with user defined priorities and preferences.",
+  "main": "index.js",
+  "dependencies": {
+    "async": "^2.0.0",
+    "cheerio": "^0.20.0",
+    "moment": "^2.14.1",
+    "nconf": "^0.8.4",
+    "nightmare": "^2.5.2",
+    "nightmare-iframe-manager": "github:rosshinkley/nightmare-iframe-manager",
+    "promise": "^7.1.1",
+    "sqlite3": "^3.1.4",
+    "tidy-html5": "^0.1.1"
+  },
+  "devDependencies": {
+    "eslint": "^3.2.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "John Tribolet II <john@tribolet.info>",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Majicbob/indiegala-automation.git"
+  }
+}
