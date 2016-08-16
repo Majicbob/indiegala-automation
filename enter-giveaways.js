@@ -20,6 +20,7 @@ const Promise     = require('promise')
 const nconf       = require('nconf');
 const sqlite3     = require('sqlite3').verbose();
 const db          = new sqlite3.Database('db.sqlite3');
+const fs          = require('fs');
 
 
 nconf.file('config.json');
@@ -77,6 +78,51 @@ function login() {
         */
 }
 
+/**
+ * Cookies testing function
+ *
+ * Clearing cookies by itself doesn't seem to log out within a single NM instance.
+ */
+function cookies() {
+    nmInst
+        // .cookies.clear()
+        .goto('https://www.indiegala.com')
+        .wait()
+        .goto('https://www.indiegala.com/giveaways')
+        .exists('.site-menu .login-btn')
+        .then((loginExists) => {
+            if (loginExists) {
+                // user is not logged in
+                let cookies = fs.readFileSync(nconf.get('cookieFile'));
+                cookies = JSON.parse(cookies);
+
+                return nmInst.cookies.set(cookies);
+            }
+            else {
+                // user is logged in, save cookies
+                return nmInst
+                    .cookies.get()
+                    .then((cookies) => {
+                        // console.log(cookies);
+                        const cookieJson = JSON.stringify(cookies);
+                        fs.writeFile(nconf.get('cookieFile'), cookieJson, (err) => {
+                            if (err) {
+                                return console.error(err);
+                            }
+
+                            console.log('Cookies Saved');
+                        });
+                    });
+            }
+        })
+        .then(() => {
+            nmInst
+                .goto('https://www.indiegala.com/giveaways');
+        })
+        .catch((err) => {
+            console.error(err);
+        });
+}
 
 /**
  * Read options/preferences (to be implemented) and prioritize games accordingly
@@ -140,5 +186,6 @@ function enterGiveaways(giveaways) {
 
 
 // login();
+cookies();
 
-prioritizeGiveaways().then( (giveaways) => enterGiveaways(giveaways) );
+// prioritizeGiveaways().then( (giveaways) => enterGiveaways(giveaways) );
