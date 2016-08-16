@@ -125,7 +125,8 @@ function enterGiveaways(giveaways) {
             .wait()
             .then( () => next() )
             .catch((err) => {
-                next('Nightmare Error entering giveaway: ' + err);
+                console.error(err);
+                next('Nightmare Error entering giveaway: ' + err.message);
 
                 // update db
             });
@@ -138,5 +139,6 @@ function enterGiveaways(giveaways) {
 }
 
 
-prioritizeGiveaways()
-.then((giveaways) => enterGiveaways(giveaways));
+// login();
+
+prioritizeGiveaways().then( (giveaways) => enterGiveaways(giveaways) );
