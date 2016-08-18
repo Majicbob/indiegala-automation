@@ -93,7 +93,28 @@ module.exports = {
                 }
             }
         );
-    }
+    },
 
-    // insertGame:
+    // insert new row to games
+    insertGame: (game) => {
+        insertGame.run(
+            game.steamId,
+            game.reviewText,
+            game.reviewStats,
+            game.genre,
+            game.metascore,
+            game.tag1,
+            game.tag2,
+            game.tag3,
+            game.shortDesc,
+            (insertErr) => {
+                if (insertErr) {
+                    // ignore PK insert errors
+                    if (! insertErr.message.includes('UNIQUE constraint failed')) {
+                        console.error(insertErr);
+                    }
+                }
+            }
+        );
+    }
 }

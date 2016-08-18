@@ -12,40 +12,19 @@
 'use strict';
 
 // modules
+const nconf       = require('./config');
 const Nightmare   = require('nightmare');
 const async       = require('async');
 const request     = require('request');
 const cheerio     = require('cheerio');
-const sqlite3     = require('sqlite3').verbose();
+const model       = require('./model');
 
 
-const db = new sqlite3.Database('db.sqlite3');
-
-const createGamesTable = `
-CREATE TABLE IF NOT EXISTS games (
-    steamId INTEGER,
-    reviewText TEXT,
-    reviewStats TEXT,
-    genre TEXT,
-    metascore INTEGER,
-    tag1 TEXT,
-    tag2 TEXT,
-    tag3 TEXT,
-    shortDesc TEXT,
-    PRIMARY KEY(steamId)
-);
-`.trim();
-
-db.serialize(() => {
-    db.run(createGamesTable)
-});
-
-const insertGame = db.prepare('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
 const selectSql = 'SELECT DISTINCT steamUrl, steamId ' +
     'FROM giveaways WHERE steamId IS NOT NULL ' +
     'AND steamId NOT IN (SELECT DISTINCT steamId FROM games) ';
 
-db.each(selectSql, (err, row) => {
+model.db.each(selectSql, (err, row) => {
 
     request(row.steamUrl, (err, resp, body) => {
         if (err) {
@@ -56,6 +35,7 @@ db.each(selectSql, (err, row) => {
 
         const $ = cheerio.load(body);
         const game = {
+            steamId:     row.steamId,
             reviewText:  $('.game_review_summary').first().text(),
             reviewStats: $('.user_reviews_summary_row').attr('data-store-tooltip'),
             genre:       $('div.breadcrumbs > div.blockbg > a:nth-child(2)').text(),
@@ -67,28 +47,7 @@ db.each(selectSql, (err, row) => {
 
         };
 
-        insertGame.run(
-            row.steamId,
-            game.reviewText,
-            game.reviewStats,
-            game.genre,
-            game.metascore,
-            game.tag1,
-            game.tag2,
-            game.tag3,
-            game.shortDesc,
-            (insertErr) => {
-                if (insertErr) {
-                    // ignore PK insert errors
-                    if (! insertErr.message.includes('UNIQUE constraint failed')) {
-                        console.error(insertErr);
-                    }
-                }
-            }
-        );
-
-        // console.log(game); console.log('');
-        // process.exit();
+        model.insertGame(game);
 
     });
 
