@@ -1,6 +1,18 @@
 {
-  "indiegala": {
-    "user": "username@example.com",
-    "pass": "password"
-  }
+    "indiegala": {
+        "user": "username@example.com",
+        "pass": "password"
+        "baseUrl": "https://www.indiegala.com"
+    },
+
+    "nightmare": {
+        "userAgent": "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36",
+        "show": false,
+        "fullscreen": false,
+        "width": 1024,
+        "height": 800
+    },
+
+    "cookieFile": "cookies.json",
+    "sqliteFile": "db.sqlite3"
 }
