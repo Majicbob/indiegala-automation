@@ -25,20 +25,14 @@ const cheerio     = require('cheerio');
 const model       = require('./model');
 
 // config / globals
-const baseUrl     = 'https://www.indiegala.com';
+const baseUrl     = nconf.get('indiegala:baseUrl');
 
-const nightmareConfig = {
-    show: true,
-    fullscreen: false
-};
-let nmInst = Nightmare(nightmareConfig);
-nmInst.useragent(nconf.get('nightmare:userAgent'));
 
 /**
  * The number of giveaway listing pages to parse. There are 12 giveaways per page.
  * @type {number}
  */
-const pagesToParse = 40;
+const pagesToParse = 2;
 
 
 /**
@@ -53,12 +47,14 @@ function processGiveawayPages(links) {
             if (err) {
                 console.error('Error loading giveaway url: \n' + err);
                 next(err);
+                return;
             }
-            const $        = cheerio.load(body);
+
+            const $ = cheerio.load(body);
 
             // get end date from thier JS and convert to unix ts
             let endTime    = -1;
-            let found      = body.match(/new Date\(Date\.UTC.*;/g);
+            const found    = body.match(/new Date\(Date\.UTC.*;/g);
             if (null !== found) {
                 let getEndTime = new Function('return ' + found[0]);
                 endTime        = Math.round(getEndTime().getTime() / 1000);
@@ -70,16 +66,16 @@ function processGiveawayPages(links) {
                 steamUrl = steamUrl.slice(0, -1);
             }
 
-            let steamId = steamUrl.substring(steamUrl.lastIndexOf('/') + 1);
+            const steamId = steamUrl.substring(steamUrl.lastIndexOf('/') + 1);
 
-            let giveaway = {
+            const giveaway = {
                 'id':       $('.ticket-right .relative').attr('rel'),
                 'name':     $('.ticket-info-cont h2').text(),
-                'steamUrl': steamUrl,
                 'price':    $('.ticket-left .ticket-price strong').text(),
                 'endDate':  endTime,
                 'level':    $('.type-level-cont').text().trim(),
-                'steamId':  steamId
+                steamUrl,
+                steamId
             };
 
             model.insertGiveaway(giveaway);
@@ -99,7 +95,9 @@ function processGiveawayPages(links) {
 }
 
 /**
- * Scrape the links to individual game links. This is run in Nightmare/Electron.
+ * Scrape the links to individual game links. This is run in Nightmare/Electron browser context.
+ *
+ * @return {string[]} Array of URLs to individual giveaway pages
  */
 function parseGameLinks() {
     // eslint-disable-next-line no-var, no-undef
@@ -111,11 +109,14 @@ function parseGameLinks() {
 }
 
 
+// Setup Nightmare and start processing pages
+const nmInst = Nightmare(nconf.get('nightmare'));
+nmInst.useragent(nconf.get('nightmare:userAgent'));
 
 async.timesSeries(pagesToParse, (n, next) => {
     // timesSeries is zero-based, the links are 1 based so skip
     if (0 === n) {
-        next(null, []);
+        next();
     }
     else {
         const thisPage = baseUrl + '/giveaways/' + n + '/expiry/asc/level/all';
@@ -137,34 +138,19 @@ async.timesSeries(pagesToParse, (n, next) => {
     }
 
 }, (err, allLinks) => {
-    console.log('All finished from timesSeries');
     if (err) {
         console.error('All Finished Error: ' + err);
         return;
     }
 
-    const flatLinks = [].concat.apply([], allLinks);
-
+    // const flatLinks = [].concat.apply([], allLinks);
     // processGiveawayPages(flatLinks);
 
-    // insertGiveaway.finalize(() => {
-        // db.close();
-        // console.log('Call nm.end and Process.exit');
-        // nmInst.end();
-        // process.exit();
-    // });
-
-
     setTimeout(() => {
-        // not firing?
         console.log('Call Process.exit');
         nmInst.end();
         process.exit();
     }, 3000);
-
-    // can't close Nightmare?
-    // nmInst = Nightmare(nightmareConfig);
-    // nmInst.goto(baseUrl).end();
 });
 
 

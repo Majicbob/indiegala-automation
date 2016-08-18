@@ -7,6 +7,7 @@
 
 'use strict';
 const nconf       = require('./config');
+const Promise     = require('promise');
 const sqlite3     = require('sqlite3').verbose();
 const db          = new sqlite3.Database(nconf.get('sqliteFile'));
 
@@ -64,11 +65,10 @@ const markAsEntered = db.prepare('UPDATE giveaways SET entered = 1 WHERE id = ?'
 const insertGame    = db.prepare('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
 
 
-
 module.exports = {
 
     // direct interface to the db
-    db: db,
+    db,
 
     // set giveaways.entered = 1 for the provided id
     markAsEntered: (giveawayId) => {
@@ -77,7 +77,7 @@ module.exports = {
                 console.error(updateError);
             }
             else {
-                console.log('Updated ' + giveawayId);
+                // console.log('Updated ' + giveawayId);
             }
         });
     },
@@ -138,4 +138,4 @@ module.exports = {
             });
         });
     }
-}
+};

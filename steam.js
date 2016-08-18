@@ -19,12 +19,6 @@ const cheerio     = require('cheerio');
 const model       = require('./model');
 
 
-function scrapeAllGames(games) {
-    async.each(games, (game, next) => {
-        scrapeGame(game);
-    });
-}
-
 function scrapeGame(game) {
     request(game.steamUrl, (err, resp, body) => {
         if (err) {
@@ -48,6 +42,13 @@ function scrapeGame(game) {
         };
 
         model.insertGame(gameData);
+    });
+}
+
+
+function scrapeAllGames(games) {
+    async.each(games, (game) => {
+        scrapeGame(game);
     });
 }
 

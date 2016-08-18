@@ -13,32 +13,19 @@
 'use strict';
 
 // modules
+const nconf       = require('./config');
+const model       = require('./model');
 const Nightmare   = require('nightmare');
 require('nightmare-iframe-manager')(Nightmare);
 const async       = require('async');
-const Promise     = require('promise')
-const nconf       = require('nconf');
-const sqlite3     = require('sqlite3').verbose();
-const db          = new sqlite3.Database('db.sqlite3');
+const Promise     = require('promise');
 const fs          = require('fs');
 
-
-nconf.file('config.json');
-
-
-// log in
-const chromeUA    = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko)' +
-                    ' Chrome/51.0.2704.103 Safari/537.36';
-
-const nightmareConfig = {
-    show: true,
-    fullscreen: false,
-    width: 1024,
-    height: 800,
-    // webPreferences: { webSecurity: false }
-};
-let nmInst = Nightmare(nightmareConfig);
-nmInst.useragent(chromeUA);
+// setup Nightmare instance
+const nmConfig  = nconf.get('nightmare');
+nmConfig.show   = true; // show for manual login
+const nmInst    = Nightmare(nmConfig);
+nmInst.useragent(nmConfig.userAgent);
 
 /**
  * Login - having issues with the captcha
@@ -54,7 +41,7 @@ function login() {
         .type('#popupemail', nconf.get('indiegala:user'))
         .wait()
         .enterIFrame('#login_popup iframe')
-        // .click('body > div.rc-anchor.rc-anchor-normal.rc-anchor-light > div.rc-anchor-normal-footer > div.rc-anchor-pt > a:nth-child(1)') /* works */
+        // .click('div.rc-anchor-normal-footer > div.rc-anchor-pt > a:nth-child(1)') /* works */
         // .evaluate(() => {
             // return document.getElementById('recaptcha-anchor').click();
         // })
@@ -71,11 +58,6 @@ function login() {
         .catch((err) => {
             console.log(err);
         });
-
-        /**
-        auth="eyJfdXNlciI6WzQ2Njg4MjcyMzIzNzA2ODgsMSwiTUNnNWlmdTFtWjdDNDBJMjdyVGRaciIsMTQ3MTIzMTE0NSwxNDcxMjMxMTQ1XX0\075|1471231151|150cd0264b14eadce3e7620ef589baaf604eb8e1"
-
-        */
 }
 
 /**
@@ -83,7 +65,7 @@ function login() {
  *
  * Clearing cookies by itself doesn't seem to log out within a single NM instance.
  */
-function cookies() {
+function cookiesTest() {
     nmInst
         // .cookies.clear()
         .goto('https://www.indiegala.com')
@@ -138,10 +120,11 @@ function prioritizeGiveaways() {
         'INNER JOIN games g on ga.steamId = g.steamId ' +
         'WHERE entered = 0 AND endDate > ' + now + ' ' +
         'AND reviewText like "%Positive" ' +
-        'ORDER BY endDate ASC ';
+        'ORDER BY endDate ASC ' +
+        'LIMIT 20';
 
     return new Promise((fulfill, reject) => {
-        db.all(sql, (err, rows) => {
+        model.db.all(sql, (err, rows) => {
             if (err) {
                 console.error(err);
                 reject(err);
@@ -163,29 +146,39 @@ function prioritizeGiveaways() {
  *
  */
 function enterGiveaways(giveaways) {
-    async.eachSeries(giveaways, (giveaways, next) => {
+    async.eachSeries(giveaways, (giveaway, next) => {
         nmInst
-            .goto(giveaways.url)
+            .goto(giveaway.url)
             .wait()
             .click('.giv-coupon')
             .wait()
-            .then( () => next() )
+            // .title()
+            .evaluate(() => {
+                return {
+                    title: document.title,
+                    coins: document.querySelector('.coins-amount').title
+                };
+            })
+            .then( (data) => {
+                console.log(data);
+                model.markAsEntered(giveaway.id);
+                next();
+            })
             .catch((err) => {
                 console.error(err);
                 next('Nightmare Error entering giveaway: ' + err.message);
-
-                // update db
             });
     }, (err) => {
         if (err) {
             console.error(err);
         }
         // all giveaways entered
+        console.log('All Giveaways Entered');
     });
 }
 
 
 // login();
-cookies();
+// cookiesTest();
 
-// prioritizeGiveaways().then( (giveaways) => enterGiveaways(giveaways) );
+prioritizeGiveaways().then( (giveaways) => enterGiveaways(giveaways) );
