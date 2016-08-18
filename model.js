@@ -46,6 +46,13 @@ db.parallelize(() => {
 
 // setup queries
 
+const newGamesToDetailSql = `
+    SELECT DISTINCT steamUrl, steamId
+    FROM giveaways
+    WHERE steamId IS NOT NULL
+    AND steamId NOT IN (SELECT DISTINCT steamId FROM games)
+`;
+
 // giveaways queries
 const insertGiveaway = db.prepare(
         'INSERT INTO giveaways (id, name, steamUrl, price, endDate, steamId) ' +
@@ -116,5 +123,19 @@ module.exports = {
                 }
             }
         );
+    },
+
+    // returns promise for array of objs with steamUrl and steamId
+    getNewGamesToDetail: () => {
+        return new Promise((fulfill, reject) => {
+            db.all(newGamesToDetailSql, (err, rows) => {
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                }
+
+                fulfill(rows);
+            });
+        });
     }
 }

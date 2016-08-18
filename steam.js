@@ -13,29 +13,30 @@
 
 // modules
 const nconf       = require('./config');
-const Nightmare   = require('nightmare');
 const async       = require('async');
 const request     = require('request');
 const cheerio     = require('cheerio');
 const model       = require('./model');
 
 
-const selectSql = 'SELECT DISTINCT steamUrl, steamId ' +
-    'FROM giveaways WHERE steamId IS NOT NULL ' +
-    'AND steamId NOT IN (SELECT DISTINCT steamId FROM games) ';
+function scrapeAllGames(games) {
+    async.each(games, (game, next) => {
+        scrapeGame(game);
+    });
+}
 
-model.db.each(selectSql, (err, row) => {
-
-    request(row.steamUrl, (err, resp, body) => {
+function scrapeGame(game) {
+    request(game.steamUrl, (err, resp, body) => {
         if (err) {
             console.error('Error loading Steam url: \n' + err);
         }
 
-        console.log(row.steamUrl);
+        console.log(game.steamUrl);
 
         const $ = cheerio.load(body);
-        const game = {
-            steamId:     row.steamId,
+
+        const gameData = {
+            steamId:     game.steamId,
             reviewText:  $('.game_review_summary').first().text(),
             reviewStats: $('.user_reviews_summary_row').attr('data-store-tooltip'),
             genre:       $('div.breadcrumbs > div.blockbg > a:nth-child(2)').text(),
@@ -44,20 +45,12 @@ model.db.each(selectSql, (err, row) => {
             tag2:        $('.popular_tags > a:nth-child(2)').text().trim(),
             tag3:        $('.popular_tags > a:nth-child(3)').text().trim(),
             shortDesc:   $('.game_description_snippet').text().trim()
-
         };
 
-        model.insertGame(game);
-
+        model.insertGame(gameData);
     });
+}
 
-}, (err, numRows) => {
-    console.log('Num Rows: ' + numRows);
-    if (err) {
-        console.error('Error: \n' + err);
-    }
-    // all rows processed
-    // insertGame.finalize(() => {
-        // db.close();
-    // })
-} );
+model
+    .getNewGamesToDetail()
+    .then( games => scrapeAllGames(games));
