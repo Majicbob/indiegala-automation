@@ -17,24 +17,22 @@
 'use strict';
 
 // modules
+const nconf       = require('./config');
 const Nightmare   = require('nightmare');
 const async       = require('async');
 const request     = require('request');
 const cheerio     = require('cheerio');
-const sqlite3     = require('sqlite3').verbose();
+const model       = require('./model');
 
 // config / globals
 const baseUrl     = 'https://www.indiegala.com';
-
-const chromeUA    = 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko)' +
-                    ' Chrome/51.0.2704.103 Safari/537.36';
 
 const nightmareConfig = {
     show: true,
     fullscreen: false
 };
 let nmInst = Nightmare(nightmareConfig);
-nmInst.useragent(chromeUA);
+nmInst.useragent(nconf.get('nightmare:userAgent'));
 
 /**
  * The number of giveaway listing pages to parse. There are 12 giveaways per page.
@@ -42,27 +40,12 @@ nmInst.useragent(chromeUA);
  */
 const pagesToParse = 40;
 
-// setup sqlite3 db
-const db          = new sqlite3.Database('db.sqlite3');
-
-db.serialize(() => {
-    db.run(
-        'CREATE TABLE IF NOT EXISTS `giveaways` ( `id` INTEGER, `name` TEXT, ' +
-        '`steamUrl` TEXT, `price` NUMERIC, `endDate` INTEGER, `steamId` INTEGER, ' +
-        '`entered`	INTEGER DEFAULT 0,' +
-        'PRIMARY KEY(id) );');
-
-});
-
 
 /**
  * Process giveaway pages using Request/Cheerio to grab data and store in DB.
  * @param {string[]} links  Relative links to individual giveaways
  */
 function processGiveawayPages(links) {
-    const insertGiveaway = db.prepare(
-        'INSERT INTO giveaways (id, name, steamUrl, price, endDate, steamId) ' +
-        'VALUES (?, ?, ?, ?, ?, ?)');
 
     async.each(links, (link, next) => {
         const giveawayUrl = baseUrl + link;
@@ -78,9 +61,10 @@ function processGiveawayPages(links) {
             let found      = body.match(/new Date\(Date\.UTC.*;/g);
             if (null !== found) {
                 let getEndTime = new Function('return ' + found[0]);
-                endTime    = Math.round(getEndTime().getTime() / 1000);
+                endTime        = Math.round(getEndTime().getTime() / 1000);
             }
 
+            // get the steam url and remove trailing slashes
             let steamUrl = $('.ticket-info-cont .steam-link').attr('href');
             if (steamUrl.endsWith('/')) {
                 steamUrl = steamUrl.slice(0, -1);
@@ -98,35 +82,15 @@ function processGiveawayPages(links) {
                 'steamId':  steamId
             };
 
-            insertGiveaway.run(
-                giveaway.id,
-                giveaway.name,
-                giveaway.steamUrl,
-                giveaway.price,
-                giveaway.endDate,
-                giveaway.steamId,
-                (insertErr) => {
-                    if (insertErr) {
-                        // ignore PK insert errors
-                        if (! insertErr.message.includes('UNIQUE constraint failed')) {
-                            console.error(insertErr);
-                        }
-                    }
-                }
-            );
+            model.insertGiveaway(giveaway);
 
-            // console.log(giveaway);
             next();
-
         });
     }, (err) => {
         // all finished
         if (err) {
             console.error(err);
         }
-
-        // insertGiveaway.finalize();
-        // db.close();
 
         /** @todo Find out why this doesn't close the Nightmare instance. It will close it
                   when this is called for each page instead of all combined pages. */
@@ -166,7 +130,8 @@ async.timesSeries(pagesToParse, (n, next) => {
                 next(null, links);
             })
             .catch((err) => {
-                console.error('Nightmare error loading giveaway list page: ' + err);
+                console.error('Nightmare error loading giveaway list page: ');
+                console.error(err);
                 next(err, links);
             });
     }
@@ -182,12 +147,12 @@ async.timesSeries(pagesToParse, (n, next) => {
 
     // processGiveawayPages(flatLinks);
 
-    insertGiveaway.finalize(() => {
-        db.close();
-        console.log('Call nm.end and Process.exit');
-        nmInst.end();
-        process.exit();
-    });
+    // insertGiveaway.finalize(() => {
+        // db.close();
+        // console.log('Call nm.end and Process.exit');
+        // nmInst.end();
+        // process.exit();
+    // });
 
 
     setTimeout(() => {
