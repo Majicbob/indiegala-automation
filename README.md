@@ -1,5 +1,9 @@
 # IndieGala Automation
 
+>**Status:** <br/>
+Giveaway + Steam data scraping is working and storing to a sqlite db. Basic giveway entery automation is working but login has to be done with a visible Electron window due to the captcha. After that login is saved, testing how long it will remain vaild with interaction.
+ 
+
 This project automates the entry of IndieGala Giveaways with the goal of being able to define behavior 
 such as preference for specific games, genres, or Steam ratings. Some pages require using Nightmare. 
 The giveaway listing pages won't load with Request and the Take Part on individual giveaways requires JS.
