@@ -107,3 +107,5 @@ jspm_packages
 
 ### Project Specfic ###
 config.json
+cookies.json
+db.sqlite3
