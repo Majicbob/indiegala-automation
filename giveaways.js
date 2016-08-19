@@ -32,7 +32,7 @@ const baseUrl     = nconf.get('indiegala:baseUrl');
  * The number of giveaway listing pages to parse. There are 12 giveaways per page.
  * @type {number}
  */
-const pagesToParse = 2;
+const pagesToParse = nconf.get('indiegala:pagesToParse');
 
 
 /**
@@ -113,7 +113,7 @@ function parseGameLinks() {
 const nmInst = Nightmare(nconf.get('nightmare'));
 nmInst.useragent(nconf.get('nightmare:userAgent'));
 
-async.timesSeries(pagesToParse, (n, next) => {
+async.timesSeries(pagesToParse + 1, (n, next) => {
     // timesSeries is zero-based, the links are 1 based so skip
     if (0 === n) {
         next();
