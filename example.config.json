@@ -2,7 +2,9 @@
     "indiegala": {
         "user": "username@example.com",
         "pass": "password"
-        "baseUrl": "https://www.indiegala.com"
+        "baseUrl": "https://www.indiegala.com",
+        "pagesToParse": 20,
+        "level": 0
     },
 
     "nightmare": {
