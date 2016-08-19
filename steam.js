@@ -17,6 +17,7 @@ const async       = require('async');
 const request     = require('request');
 const cheerio     = require('cheerio');
 const model       = require('./model');
+const Promise     = require('promise');
 
 
 function scrapeGame(game) {
@@ -45,13 +46,31 @@ function scrapeGame(game) {
     });
 }
 
-
 function scrapeAllGames(games) {
-    async.each(games, (game) => {
-        scrapeGame(game);
+    return new Promise((fulfill, reject) => {
+        async.each(games, (game) => {
+            scrapeGame(game);
+        }, () => {
+            fulfill();
+        });
     });
 }
 
-model
-    .getNewGamesToDetail()
-    .then( games => scrapeAllGames(games));
+/**
+ * Exported function to initiate scraping
+ *
+ * @returns {Promise}
+ */
+function scrape() {
+    return new Promise((fulfill, reject) => {
+        model
+            .getNewGamesToDetail()
+            .then( games => scrapeAllGames(games) )
+            .then( () => fulfill() );
+    });
+}
+
+
+module.exports = {
+    scrape
+};
