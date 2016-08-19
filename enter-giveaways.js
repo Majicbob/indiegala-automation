@@ -151,18 +151,42 @@ function enterGiveaways(giveaways) {
             .goto(giveaway.url)
             .wait()
             .click('.giv-coupon')
-            .wait()
-            // .title()
+            .wait(2500)
             .evaluate(() => {
+
                 return {
+                    entered: $('.giv-coupon').length === 0,
                     title: document.title,
                     coins: document.querySelector('.coins-amount').title
                 };
             })
             .then( (data) => {
                 console.log(data);
-                model.markAsEntered(giveaway.id);
-                next();
+                if (data.entered) {
+                    model.markAsEntered(giveaway.id);
+                    next();
+                }
+                else {
+                    console.log('No entered, retry');
+                    return nmInst
+                        .refresh()
+                        .click('.giv-coupon')
+                        .wait(2500)
+                        .evaluate(() => {
+                            return {
+                                entered: $('.giv-coupon').length === 0,
+                                title: document.title,
+                                coins: document.querySelector('.coins-amount').title
+                            };
+                        })
+                        .then( (data) => {
+                            if (data.entered) {
+                                model.markAsEntered(giveaway.id);
+                            }
+
+                            next();
+                        });
+                }
             })
             .catch((err) => {
                 console.error(err);
