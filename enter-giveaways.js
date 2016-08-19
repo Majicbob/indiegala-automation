@@ -171,7 +171,7 @@ function enterGiveaways(giveaways) {
                     return nmInst
                         .refresh()
                         .click('.giv-coupon')
-                        .wait(2500)
+                        .wait(3000)
                         .evaluate(() => {
                             return {
                                 entered: $('.giv-coupon').length === 0,
@@ -190,7 +190,13 @@ function enterGiveaways(giveaways) {
             })
             .catch((err) => {
                 console.error(err);
-                next('Nightmare Error entering giveaway: ' + err.message);
+                if (err === 'Unable to find element by selector: .giv-coupon') {
+                    model.markAsEntered(giveaway.id);
+                    next();
+                }
+                else {
+                    next('Nightmare Error entering giveaway: ' + err.message);
+                }
             });
     }, (err) => {
         if (err) {
