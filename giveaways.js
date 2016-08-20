@@ -119,7 +119,8 @@ async.timesSeries(pagesToParse + 1, (n, next) => {
         next();
     }
     else {
-        const thisPage = baseUrl + '/giveaways/' + n + '/expiry/asc/level/all';
+        const level = nconf.get('indiegala:level');
+        const thisPage = baseUrl + '/giveaways/' + n + '/expiry/asc/level/' + level;
         nmInst
             .goto(thisPage)
             .wait('.giveaways-main-page')
