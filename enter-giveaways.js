@@ -70,7 +70,7 @@ function cookiesTest() {
         // .cookies.clear()
         .goto('https://www.indiegala.com')
         .wait()
-        .goto('https://www.indiegala.com/giveaways')
+        // .goto('https://www.indiegala.com/giveaways')
         .exists('.site-menu .login-btn')
         .then((loginExists) => {
             if (loginExists) {
@@ -78,7 +78,7 @@ function cookiesTest() {
                 let cookies = fs.readFileSync(nconf.get('cookieFile'));
                 cookies = JSON.parse(cookies);
 
-                return nmInst.cookies.set(cookies);
+                // return nmInst.cookies.set(cookies);
             }
             else {
                 // user is logged in, save cookies
@@ -119,9 +119,12 @@ function prioritizeGiveaways() {
         'SELECT id FROM giveaways ga ' +
         'INNER JOIN games g on ga.steamId = g.steamId ' +
         'WHERE entered = 0 AND endDate > ' + now + ' ' +
-        'AND reviewText like "%Positive" ' +
+        'AND ( ' +
+        '    reviewText like "%Positive" ' +
+        '    OR metascore >= 70 ' +
+        ') ' +
         'ORDER BY endDate ASC ' +
-        'LIMIT 20';
+        'LIMIT 50';
 
     return new Promise((fulfill, reject) => {
         model.db.all(sql, (err, rows) => {
@@ -142,16 +145,30 @@ function prioritizeGiveaways() {
 }
 
 /**
+ * Insert a random delay, between configurable seconds
+ *
+ * IG will log you out without this (1 to 3 seconds seems good)
+ */
+function rndDelay() {
+    const high = nconf.get('delayMs:high');
+    const low  = nconf.get('delayMs:low');
+
+    return Math.floor(Math.random() * (high - low + 1) + low);
+}
+
+/**
  * Enter the supplied giveaways and mark them as such
  *
  */
 function enterGiveaways(giveaways) {
+    console.log(giveaways);
+
     async.eachSeries(giveaways, (giveaway, next) => {
         nmInst
             .goto(giveaway.url)
-            .wait()
+            .wait(rndDelay())
             .click('.giv-coupon')
-            .wait(2500)
+            .wait(rndDelay())
             .evaluate(() => {
 
                 return {
@@ -171,7 +188,7 @@ function enterGiveaways(giveaways) {
                     return nmInst
                         .refresh()
                         .click('.giv-coupon')
-                        .wait(3000)
+                        .wait(rndDelay())
                         .evaluate(() => {
                             return {
                                 entered: $('.giv-coupon').length === 0,
