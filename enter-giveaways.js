@@ -224,8 +224,37 @@ function enterGiveaways(giveaways) {
     });
 }
 
+/**
+ * Go to profile page and check any completed ones for wins
+ */
+function checkWins() {
+    nmInst
+        .goto('https://www.indiegala.com/profile')
+        .wait('#open-giveaways-library')
+        .click('#open-giveaways-library')
+        .click('.giveaway-completed .open-library')
+        .wait('.btn-check-if-won')
+        .evaluate(() => {
+            return document.querySelectorAll('.btn-check-if-won').length;
+        })
+        .then((buttonCount) => {
+            async.timesSeries(buttonCount, (n, next) => {
+                nmInst
+                    .click('.btn-check-if-won')
+                    .wait(3000)
+                    .then(() => {
+                        next();
+                    });
+            });
+        })
+        .catch((err) => {
+            console.error(err);
+        });
+}
 
 // login();
 // cookiesTest();
 
-prioritizeGiveaways().then( (giveaways) => enterGiveaways(giveaways) );
+// prioritizeGiveaways().then( (giveaways) => enterGiveaways(giveaways) );
+
+checkWins();
