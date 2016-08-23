@@ -20,6 +20,7 @@ require('nightmare-iframe-manager')(Nightmare);
 const async       = require('async');
 const Promise     = require('promise');
 const fs          = require('fs');
+const Q           = require('q');
 
 // setup Nightmare instance
 const nmConfig  = nconf.get('nightmare');
@@ -124,7 +125,7 @@ function prioritizeGiveaways() {
         '    OR metascore >= 70 ' +
         ') ' +
         'ORDER BY endDate ASC ' +
-        'LIMIT 50';
+        'LIMIT 5';
 
     return new Promise((fulfill, reject) => {
         model.db.all(sql, (err, rows) => {
@@ -145,13 +146,13 @@ function prioritizeGiveaways() {
 }
 
 /**
- * Insert a random delay, between configurable seconds
+ * Insert a random delay, between configurable milliseconds using nconf for defaults
  *
  * IG will log you out without this (1 to 3 seconds seems good)
  */
-function rndDelay() {
-    const high = nconf.get('delayMs:high');
-    const low  = nconf.get('delayMs:low');
+function rndDelay(low = nconf.get('delayMs:low'), high = nconf.get('delayMs:high')) {
+    // const high = n;
+    // const low  = ;
 
     return Math.floor(Math.random() * (high - low + 1) + low);
 }
@@ -162,6 +163,9 @@ function rndDelay() {
  */
 function enterGiveaways(giveaways) {
     console.log(giveaways);
+
+    // const thePromise = new Promise((fulfill, reject) => {});
+    const deferred = Q.defer();
 
     async.eachSeries(giveaways, (giveaway, next) => {
         nmInst
@@ -218,16 +222,21 @@ function enterGiveaways(giveaways) {
     }, (err) => {
         if (err) {
             console.error(err);
+            deferred.reject(err);
         }
         // all giveaways entered
         console.log('All Giveaways Entered');
+        deferred.resolve();
     });
+
+    return deferred.promise;
 }
 
 /**
  * Go to profile page and check any completed ones for wins
  */
 function checkWins() {
+    console.log('Check for Wins');
     nmInst
         .goto('https://www.indiegala.com/profile')
         .wait('#open-giveaways-library')
@@ -238,10 +247,11 @@ function checkWins() {
             return document.querySelectorAll('.btn-check-if-won').length;
         })
         .then((buttonCount) => {
+            console.log('Found Buttons: ' + buttonCount);
             async.timesSeries(buttonCount, (n, next) => {
                 nmInst
                     .click('.btn-check-if-won')
-                    .wait(3000)
+                    .wait(5000) // without this wait it tries to click the same button
                     .then(() => {
                         next();
                     });
@@ -255,6 +265,11 @@ function checkWins() {
 // login();
 // cookiesTest();
 
-// prioritizeGiveaways().then( (giveaways) => enterGiveaways(giveaways) );
-
-checkWins();
+prioritizeGiveaways()
+    .then( enterGiveaways )
+    .then( checkWins )
+    .catch( (err) => {
+        if (err) {
+            console.error(err);
+        }
+    });
