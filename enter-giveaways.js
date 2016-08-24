@@ -150,9 +150,9 @@ function prioritizeGiveaways() {
  *
  * IG will log you out without this (1 to 3 seconds seems good)
  */
-function rndDelay(low = nconf.get('delayMs:low'), high = nconf.get('delayMs:high')) {
-    // const high = n;
-    // const low  = ;
+function rndDelay(low, high) {
+    low  = low  || nconf.get('delayMs:low');
+    high = high || nconf.get('delayMs:high');
 
     return Math.floor(Math.random() * (high - low + 1) + low);
 }
@@ -251,7 +251,7 @@ function checkWins() {
             async.timesSeries(buttonCount, (n, next) => {
                 nmInst
                     .click('.btn-check-if-won')
-                    .wait(5000) // without this wait it tries to click the same button
+                    .wait(rndDelay(4000, 6000)) // without this wait it tries to click the same button
                     .then(() => {
                         next();
                     });
@@ -261,6 +261,8 @@ function checkWins() {
             console.error(err);
         });
 }
+
+
 
 // login();
 // cookiesTest();
