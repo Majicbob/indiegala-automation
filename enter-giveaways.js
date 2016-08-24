@@ -16,9 +16,7 @@
 const nconf       = require('./config');
 const model       = require('./model');
 const Nightmare   = require('nightmare');
-require('nightmare-iframe-manager')(Nightmare);
 const async       = require('async');
-const Promise     = require('promise');
 const fs          = require('fs');
 const Q           = require('q');
 
@@ -31,8 +29,7 @@ nmConfig.show   = true; // show for manual login
 const nmInst    = Nightmare(nmConfig);
 nmInst.useragent(nmConfig.userAgent);
 
-// Add custom actions to Nightmare
-Nightmare.action('enterGiveaway')
+// require('nightmare-iframe-manager')(Nightmare);
 
 /**
  * Login - having issues with the captcha
@@ -195,7 +192,7 @@ function shouldRetryGiveaway(giveaway, data, next) {
     }
 
     if (data.error === IG_NOT_AUTHORIZED) {
-        console.log('Level Not High Enough');
+        console.log('--- Level Not High Enough');
         next();
 
         return false;
@@ -285,6 +282,8 @@ function enterGiveaways(giveaways) {
  */
 function checkWins() {
     console.log('Check for Wins');
+    const deferred = Q.defer();
+
     nmInst
         .goto('https://www.indiegala.com/profile')
         .wait('#open-giveaways-library')
@@ -303,24 +302,39 @@ function checkWins() {
                     .then(() => {
                         next();
                     });
+            }, err => {
+                if (err) {
+                    console.error(err);
+                    deferred.reject(err);
+                }
+                // all giveaways entered
+                console.log('All Completed Giveaways Checked');
+                deferred.resolve();
             });
-        })
-        .then(() => {
-            console.log('Check Wins Complete');
         })
         .catch((err) => {
             console.error(err);
         });
+
+    return deferred.promise;
 }
 
 
-
 // login();
-// cookiesTest();
 
 prioritizeGiveaways()
     .then( enterGiveaways )
     .then( checkWins )
+    .then( () => {
+        console.log('Check Wins Complete')
+        nmInst
+            .goto('https://www.indiegala.com/profile')
+            .wait()
+            .end()
+            .catch((err) => {
+                console.error(err);
+            });
+    } )
     .catch( (err) => {
         console.error(err);
     });
