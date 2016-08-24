@@ -128,7 +128,7 @@ function prioritizeGiveaways() {
         '    OR metascore >= 70 ' +
         ') ' +
         'ORDER BY endDate ASC ' +
-        'LIMIT 5';
+        'LIMIT 10';
 
     return new Promise((fulfill, reject) => {
         model.db.all(sql, (err, rows) => {
@@ -278,6 +278,31 @@ function enterGiveaways(giveaways) {
 }
 
 /**
+ * Clicks all the 'Check if you won!' buttons
+ */
+function clickAllCheckForWinButtons(buttonCount, deferred) {
+    console.log('Found Buttons: ' + buttonCount);
+
+    async.timesSeries(buttonCount, (n, next) => {
+        nmInst
+            .click('.btn-check-if-won')
+            // without this wait it tries to click the same button
+            .wait(rndDelay(4000, 6000))
+            .then(() => {
+                next();
+            });
+    }, err => {
+        if (err) {
+            console.error(err);
+            deferred.reject(err);
+        }
+        // all giveaways entered
+        console.log('All Completed Giveaways Checked');
+        deferred.resolve();
+    });
+}
+
+/**
  * Go to profile page and check any completed ones for wins
  */
 function checkWins() {
@@ -294,23 +319,7 @@ function checkWins() {
             return document.querySelectorAll('.btn-check-if-won').length;
         })
         .then((buttonCount) => {
-            console.log('Found Buttons: ' + buttonCount);
-            async.timesSeries(buttonCount, (n, next) => {
-                nmInst
-                    .click('.btn-check-if-won')
-                    .wait(rndDelay(4000, 6000)) // without this wait it tries to click the same button
-                    .then(() => {
-                        next();
-                    });
-            }, err => {
-                if (err) {
-                    console.error(err);
-                    deferred.reject(err);
-                }
-                // all giveaways entered
-                console.log('All Completed Giveaways Checked');
-                deferred.resolve();
-            });
+            clickAllCheckForWinButtons(buttonCount, deferred);
         })
         .catch((err) => {
             console.error(err);
@@ -337,4 +346,5 @@ prioritizeGiveaways()
     } )
     .catch( (err) => {
         console.error(err);
+        process.exit();
     });
