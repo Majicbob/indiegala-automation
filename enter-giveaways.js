@@ -21,7 +21,8 @@ const fs          = require('fs');
 const Q           = require('q');
 
 // IndieGala Constants
-const IG_NOT_AUTHORIZED = 'You are not authorized access for this giveaway.';
+const IG_NOT_AUTHORIZED   = 'You are not authorized access for this giveaway.';
+const IG_NOT_ENOUGH_COINS = 'Insufficient Indiegala Coins. Please choose a cheaper giveaway.';
 
 // setup Nightmare instance
 const nmConfig  = nconf.get('nightmare');
@@ -198,6 +199,14 @@ function shouldRetryGiveaway(giveaway, data, next) {
         return false;
     }
 
+    if (data.error === IG_NOT_ENOUGH_COINS) {
+        console.log('--- Not Enough Coins');
+        next();
+
+        return false;
+    }
+
+
     return true;
 }
 
@@ -250,7 +259,9 @@ function enterGiveaways(giveaways) {
                     return nmInst
                         .use(gotoAndClickTicket(giveaway.url))
                         .then( (data) => {
-                            shouldRetryGiveaway(giveaway, data, next);
+                            if (shouldRetryGiveaway(giveaway, data, next)) {
+                                next();
+                            }
                         });
                 }
             })
@@ -267,7 +278,7 @@ function enterGiveaways(giveaways) {
     }, (err) => {
         if (err) {
             console.error(err);
-            deferred.reject(err);
+            // deferred.reject(err);
         }
         // all giveaways entered
         console.log('All Giveaways Entered');
