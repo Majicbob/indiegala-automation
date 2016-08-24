@@ -32,6 +32,11 @@ jar.setCookie('lastagecheckage=1-January-1920', 'http://store.steampowered.com')
 request = request.defaults({jar});
 
 
+/**
+ * Use request/cheerio to scrape Steam data for the given game and insert to model
+ *
+ * @param {Object} game - Obj with steamUrl, steamId
+ */
 function scrapeGame(game) {
     request(game.steamUrl, (err, resp, body) => {
         if (err) {
@@ -61,19 +66,27 @@ function scrapeGame(game) {
 
         // console.log(gameData);
 
-        // model.insertGame(gameData);
+        model.insertGame(gameData);
     });
 }
 
+/**
+ * Async run {@link scrapeGame} for every game given
+ *
+ * @param {Object[]} games - Array of objs with steamUrl and steamId to scrape
+ * @returns {Promise}
+ */
 function scrapeAllGames(games) {
-    console.log('scrapeAllGames()');
-    return new Q.Promise((fulfill, reject) => {
-        async.each(games, (game) => {
-            scrapeGame(game);
-        }, () => {
-            fulfill();
-        });
+    const deferred = Q.defer();
+
+    async.each(games, (game, next) => {
+        scrapeGame(game);
+        next();
+    }, () => {
+        deferred.resolve();
     });
+
+    return deferred.promise;
 }
 
 /**
@@ -82,14 +95,14 @@ function scrapeAllGames(games) {
  * @returns {Promise}
  */
 function scrape() {
-    console.log('scrape()');
-    return new Q.Promise((fulfill, reject) => {
-        model
-            .getNewGamesToDetail()
-            .then( (games) => scrapeAllGames(games) )
-            .then( () => fulfill() );
-            // .then( fulfill );
-    });
+    const deferred = Q.defer();
+
+    model
+        .getNewGamesToDetail()
+        .then(scrapeAllGames)
+        .then(deferred.resolve);
+
+    return deferred.promise;
 }
 
 
@@ -111,10 +124,6 @@ module.exports = {
 };
 
 scrape()
-.then( (data) => { console.log('Scrape Done') } )
-.done( () => console.log('Done'))
-// .catch( (err) => {
-    // console.error(err);
-// });
+
 
 // getMyOwnedGames();

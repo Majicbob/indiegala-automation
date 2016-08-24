@@ -7,7 +7,7 @@
 
 'use strict';
 const nconf       = require('./config');
-const Promise     = require('promise');
+const Q           = require('q');
 const sqlite3     = require('sqlite3').verbose();
 const db          = new sqlite3.Database(nconf.get('sqliteFile'));
 
@@ -127,7 +127,7 @@ module.exports = {
 
     // returns promise for array of objs with steamUrl and steamId
     getNewGamesToDetail: () => {
-        return new Promise((fulfill, reject) => {
+        return new Q.Promise((fulfill, reject) => {
             db.all(newGamesToDetailSql, (err, rows) => {
                 if (err) {
                     console.error(err);
