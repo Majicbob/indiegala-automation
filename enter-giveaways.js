@@ -125,7 +125,7 @@ function prioritizeGiveaways() {
         '    OR metascore >= 70 ' +
         ') ' +
         'ORDER BY endDate ASC ' +
-        'LIMIT 5';
+        'LIMIT 25';
 
     return new Promise((fulfill, reject) => {
         model.db.all(sql, (err, rows) => {
@@ -148,7 +148,7 @@ function prioritizeGiveaways() {
 /**
  * Insert a random delay, between configurable milliseconds using nconf for defaults
  *
- * IG will log you out without this (1 to 3 seconds seems good)
+ * IG will log you out without this (1 to 3 seconds seems to be the min)
  */
 function rndDelay(low, high) {
     low  = low  || nconf.get('delayMs:low');
@@ -158,11 +158,41 @@ function rndDelay(low, high) {
 }
 
 /**
+ * Next item callback for async.each style
+ *
+ * @see {@link http://caolan.github.io/async/docs.html#.each | async.each Docs}
+ * @callback asyncNextItem
+ * @param {(string|Object)} [error]
+ */
+
+/**
+ *
+ * @param {Object} giveaway - Giveaway obj with url and id
+ * @param {Object} data - Results obj returned from running in the NM/Electron context
+ * @param {asyncNextItem} next - Callback to continue to next item
+ */
+function giveawayEntered(giveaway, data, next) {
+    console.log(data.coins + '\t' + data.title);
+
+    if (data.entered) {
+        model.markAsEntered(giveaway.id);
+    }
+
+    if (data.coins === '0 Indiegala Coins') {
+        next('No More Coins');
+    }
+    else {
+        next();
+    }
+}
+
+/**
  * Enter the supplied giveaways and mark them as such
  *
+ * @returns {Promise}
  */
 function enterGiveaways(giveaways) {
-    console.log(giveaways);
+    console.log('Giveaways In Queue: ' + giveaways.length);
 
     // const thePromise = new Promise((fulfill, reject) => {});
     const deferred = Q.defer();
@@ -174,7 +204,6 @@ function enterGiveaways(giveaways) {
             .click('.giv-coupon')
             .wait(rndDelay())
             .evaluate(() => {
-
                 return {
                     entered: $('.giv-coupon').length === 0,
                     title: document.title,
@@ -182,13 +211,12 @@ function enterGiveaways(giveaways) {
                 };
             })
             .then( (data) => {
-                console.log(data);
+                // console.log(data);
                 if (data.entered) {
-                    model.markAsEntered(giveaway.id);
-                    next();
+                    giveawayEntered(giveaway, data, next);
                 }
                 else {
-                    console.log('No entered, retry');
+                    // console.log('Not entered, retry');
                     return nmInst
                         .refresh()
                         .click('.giv-coupon')
@@ -201,21 +229,17 @@ function enterGiveaways(giveaways) {
                             };
                         })
                         .then( (data) => {
-                            if (data.entered) {
-                                model.markAsEntered(giveaway.id);
-                            }
-
-                            next();
+                            giveawayEntered(giveaway, data, next);
                         });
                 }
             })
             .catch((err) => {
-                console.error(err);
                 if (err === 'Unable to find element by selector: .giv-coupon') {
                     model.markAsEntered(giveaway.id);
                     next();
                 }
                 else {
+                    console.error(err);
                     next('Nightmare Error entering giveaway: ' + err.message);
                 }
             });
@@ -242,7 +266,7 @@ function checkWins() {
         .wait('#open-giveaways-library')
         .click('#open-giveaways-library')
         .click('.giveaway-completed .open-library')
-        .wait('.btn-check-if-won')
+        .wait(rndDelay(4000, 6000))
         .evaluate(() => {
             return document.querySelectorAll('.btn-check-if-won').length;
         })
@@ -256,6 +280,9 @@ function checkWins() {
                         next();
                     });
             });
+        })
+        .then(() => {
+            console.log('Check Wins Complete');
         })
         .catch((err) => {
             console.error(err);
@@ -271,7 +298,5 @@ prioritizeGiveaways()
     .then( enterGiveaways )
     .then( checkWins )
     .catch( (err) => {
-        if (err) {
-            console.error(err);
-        }
+        console.error(err);
     });
