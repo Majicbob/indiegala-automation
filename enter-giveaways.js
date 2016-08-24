@@ -22,6 +22,9 @@ const Promise     = require('promise');
 const fs          = require('fs');
 const Q           = require('q');
 
+// IndieGala Constants
+const IG_NOT_AUTHORIZED = 'You are not authorized access for this giveaway.';
+
 // setup Nightmare instance
 const nmConfig  = nconf.get('nightmare');
 nmConfig.show   = true; // show for manual login
@@ -125,7 +128,7 @@ function prioritizeGiveaways() {
         '    OR metascore >= 70 ' +
         ') ' +
         'ORDER BY endDate ASC ' +
-        'LIMIT 25';
+        'LIMIT 5';
 
     return new Promise((fulfill, reject) => {
         model.db.all(sql, (err, rows) => {
@@ -168,22 +171,48 @@ function rndDelay(low, high) {
 /**
  *
  * @param {Object} giveaway - Giveaway obj with url and id
- * @param {Object} data - Results obj returned from running in the NM/Electron context
+ * @param {Object} data - Results obj returned from {@link getDataFromGiveaway}
  * @param {asyncNextItem} next - Callback to continue to next item
+ * @return {bool}
  */
-function giveawayEntered(giveaway, data, next) {
+function shouldRetryGiveaway(giveaway, data, next) {
     console.log(data.coins + '\t' + data.title);
 
     if (data.entered) {
         model.markAsEntered(giveaway.id);
+        next();
+
+        return false;
     }
 
     if (data.coins === '0 Indiegala Coins') {
         next('No More Coins');
+
+        return false;
     }
-    else {
+
+    if (data.error === IG_NOT_AUTHORIZED) {
+        console.log('Level Not High Enough');
         next();
+
+        return false;
     }
+
+    return true;
+}
+
+/**
+ * Returns data about the attempted giveaway. This is run in Nightmare/Electron browser context.
+ *
+ * @return {Object}
+ */
+function getDataFromGiveaway() {
+    return {
+        entered: $('.giv-coupon').length === 0,
+        title: document.title,
+        coins: document.querySelector('.coins-amount').title,
+        error: $('.warning-cover:visible span').text()
+    };
 }
 
 /**
@@ -194,7 +223,6 @@ function giveawayEntered(giveaway, data, next) {
 function enterGiveaways(giveaways) {
     console.log('Giveaways In Queue: ' + giveaways.length);
 
-    // const thePromise = new Promise((fulfill, reject) => {});
     const deferred = Q.defer();
 
     async.eachSeries(giveaways, (giveaway, next) => {
@@ -203,33 +231,18 @@ function enterGiveaways(giveaways) {
             .wait(rndDelay())
             .click('.giv-coupon')
             .wait(rndDelay())
-            .evaluate(() => {
-                return {
-                    entered: $('.giv-coupon').length === 0,
-                    title: document.title,
-                    coins: document.querySelector('.coins-amount').title
-                };
-            })
+            .evaluate(getDataFromGiveaway)
             .then( (data) => {
                 // console.log(data);
-                if (data.entered) {
-                    giveawayEntered(giveaway, data, next);
-                }
-                else {
-                    // console.log('Not entered, retry');
+                if (shouldRetryGiveaway(giveaway, data, next)) {
+                    console.log('Could not dectect succsessful entery, retry');
                     return nmInst
                         .refresh()
                         .click('.giv-coupon')
                         .wait(rndDelay())
-                        .evaluate(() => {
-                            return {
-                                entered: $('.giv-coupon').length === 0,
-                                title: document.title,
-                                coins: document.querySelector('.coins-amount').title
-                            };
-                        })
+                        .evaluate(getDataFromGiveaway)
                         .then( (data) => {
-                            giveawayEntered(giveaway, data, next);
+                            shouldRetryGiveaway(giveaway, data, next);
                         });
                 }
             })
