@@ -17,7 +17,13 @@ const async       = require('async');
 const cheerio     = require('cheerio');
 const model       = require('./model');
 const Promise     = require('promise');
+const SteamApi    = require('steam-api');
+const Q           = require('q');
 let   request     = require('request');
+
+// Steam Constants
+const STEAM_API_KEY = nconf.get('steam:apiKey');
+const STEAM_USER_ID = nconf.get('steam:userId64');
 
 // set Steam cookies for age checking
 const jar = request.jar();
@@ -55,12 +61,13 @@ function scrapeGame(game) {
 
         // console.log(gameData);
 
-        model.insertGame(gameData);
+        // model.insertGame(gameData);
     });
 }
 
 function scrapeAllGames(games) {
-    return new Promise((fulfill, reject) => {
+    console.log('scrapeAllGames()');
+    return new Q.Promise((fulfill, reject) => {
         async.each(games, (game) => {
             scrapeGame(game);
         }, () => {
@@ -75,15 +82,39 @@ function scrapeAllGames(games) {
  * @returns {Promise}
  */
 function scrape() {
-    return new Promise((fulfill, reject) => {
+    console.log('scrape()');
+    return new Q.Promise((fulfill, reject) => {
         model
             .getNewGamesToDetail()
-            .then( games => scrapeAllGames(games) )
+            .then( (games) => scrapeAllGames(games) )
             .then( () => fulfill() );
+            // .then( fulfill );
     });
 }
 
 
+function getMyOwnedGames() {
+    const player = new SteamApi.Player(STEAM_API_KEY, STEAM_USER_ID);
+
+    player.GetOwnedGames()
+        .done(function(result){
+            console.log(result);
+        });
+
+    // player.GetSteamLevel().done(function(result){
+        // console.log(result);
+    // });
+}
+
 module.exports = {
     scrape
 };
+
+scrape()
+.then( (data) => { console.log('Scrape Done') } )
+.done( () => console.log('Done'))
+// .catch( (err) => {
+    // console.error(err);
+// });
+
+// getMyOwnedGames();
