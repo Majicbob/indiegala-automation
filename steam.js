@@ -14,10 +14,16 @@
 // modules
 const nconf       = require('./config');
 const async       = require('async');
-const request     = require('request');
 const cheerio     = require('cheerio');
 const model       = require('./model');
 const Promise     = require('promise');
+let   request     = require('request');
+
+// set Steam cookies for age checking
+const jar = request.jar();
+jar.setCookie('birthtime=-1577905199', 'http://store.steampowered.com');
+jar.setCookie('lastagecheckage=1-January-1920', 'http://store.steampowered.com');
+request = request.defaults({jar});
 
 
 function scrapeGame(game) {
@@ -27,6 +33,11 @@ function scrapeGame(game) {
         }
 
         console.log(game.steamUrl);
+
+        if (body.includes('Please enter your birth date to continue')) {
+            console.log('### Steam Age Check');
+            console.log('### Check Cookies, this should not come up');
+        }
 
         const $ = cheerio.load(body);
 
@@ -41,6 +52,8 @@ function scrapeGame(game) {
             tag3:        $('.popular_tags > a:nth-child(3)').text().trim(),
             shortDesc:   $('.game_description_snippet').text().trim()
         };
+
+        // console.log(gameData);
 
         model.insertGame(gameData);
     });
