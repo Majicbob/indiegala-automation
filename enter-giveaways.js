@@ -31,6 +31,9 @@ nmConfig.show   = true; // show for manual login
 const nmInst    = Nightmare(nmConfig);
 nmInst.useragent(nmConfig.userAgent);
 
+// Add custom actions to Nightmare
+Nightmare.action('enterGiveaway')
+
 /**
  * Login - having issues with the captcha
  * just logged in using the electron window and the cookies presist
@@ -216,6 +219,21 @@ function getDataFromGiveaway() {
 }
 
 /**
+ * For Nightmare.use() - goes to the url, clicks enter and
+ * runs {@link getDataFromGiveaway} in the Electron context.
+ */
+function gotoAndClickTicket(url) {
+    return (nightmare) => {
+        nightmare
+            .goto(url)
+            .wait(rndDelay())
+            .click('.giv-coupon')
+            .wait(rndDelay())
+            .evaluate(getDataFromGiveaway);
+    }
+}
+
+/**
  * Enter the supplied giveaways and mark them as such
  *
  * @returns {Promise}
@@ -227,20 +245,13 @@ function enterGiveaways(giveaways) {
 
     async.eachSeries(giveaways, (giveaway, next) => {
         nmInst
-            .goto(giveaway.url)
-            .wait(rndDelay())
-            .click('.giv-coupon')
-            .wait(rndDelay())
-            .evaluate(getDataFromGiveaway)
+            .use(gotoAndClickTicket(giveaway.url))
             .then( (data) => {
                 // console.log(data);
                 if (shouldRetryGiveaway(giveaway, data, next)) {
                     console.log('Could not dectect succsessful entery, retry');
                     return nmInst
-                        .refresh()
-                        .click('.giv-coupon')
-                        .wait(rndDelay())
-                        .evaluate(getDataFromGiveaway)
+                        .use(gotoAndClickTicket(giveaway.url))
                         .then( (data) => {
                             shouldRetryGiveaway(giveaway, data, next);
                         });
