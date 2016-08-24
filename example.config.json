@@ -20,6 +20,11 @@
         "height": 800
     },
 
+    "steam": {
+        "apiKey": "API Key From Steam",
+        "userId64": "Steam 64 ID"
+    },
+
     "cookieFile": "cookies.json",
     "sqliteFile": "db.sqlite3"
 }
