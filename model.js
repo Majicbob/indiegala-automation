@@ -11,6 +11,7 @@ const Q           = require('q');
 const sqlite3     = require('sqlite3').verbose();
 const db          = new sqlite3.Database(nconf.get('sqliteFile'));
 
+sqlite3.verbose();
 // setup tables
 const createGamesTableSql = `
     CREATE TABLE IF NOT EXISTS games (
@@ -40,12 +41,15 @@ const creatGiveawaysTableSql = `
     );
 `;
 
-db.parallelize(() => {
-    db.run(createGamesTableSql);
-    db.run(creatGiveawaysTableSql);
-});
+const createGamesOwnedTableSql = `
+    CREATE TABLE IF NOT EXISTS games_owned (
+        steamId INTEGER,
+        PRIMARY KEY(steamID)
+    );
+`;
 
 // setup queries
+
 
 const newGamesToDetailSql = `
     SELECT DISTINCT steamUrl, steamId
@@ -54,15 +58,24 @@ const newGamesToDetailSql = `
     AND steamId NOT IN (SELECT DISTINCT steamId FROM games)
 `;
 
+db.serialize();
+db.run(createGamesTableSql);
+db.run(creatGiveawaysTableSql);
+db.run(createGamesOwnedTableSql);
+db.parallelize();
+
 // giveaways queries
 const insertGiveaway = db.prepare(
-        'INSERT INTO giveaways (id, name, steamUrl, price, endDate, steamId) ' +
-        'VALUES (?, ?, ?, ?, ?, ?)');
+    'INSERT INTO giveaways (id, name, steamUrl, price, endDate, steamId) ' +
+    'VALUES (?, ?, ?, ?, ?, ?)');
 
 const markAsEntered = db.prepare('UPDATE giveaways SET entered = 1 WHERE id = ?');
 
 // games queries
-const insertGame    = db.prepare('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+const insertGame = db.prepare('INSERT INTO games VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+
+// games_owned queries
+const insertOwnedGame = db.prepare('INSERT INTO games_owned VALUES (?)');
 
 
 module.exports = {
@@ -114,6 +127,21 @@ module.exports = {
             game.tag2,
             game.tag3,
             game.shortDesc,
+            (insertErr) => {
+                if (insertErr) {
+                    // ignore PK insert errors
+                    if (! insertErr.message.includes('UNIQUE constraint failed')) {
+                        console.error(insertErr);
+                    }
+                }
+            }
+        );
+    },
+
+    // insert new row to games
+    insertOwnedGame: (steamId) => {
+        insertOwnedGame.run(
+            steamId,
             (insertErr) => {
                 if (insertErr) {
                     // ignore PK insert errors

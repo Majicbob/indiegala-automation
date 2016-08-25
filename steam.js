@@ -106,24 +106,23 @@ function scrape() {
 }
 
 
-function getMyOwnedGames() {
+function updateOwnedGames() {
     const player = new SteamApi.Player(STEAM_API_KEY, STEAM_USER_ID);
 
-    player.GetOwnedGames()
-        .done(function(result){
-            console.log(result);
-        });
+    player.GetOwnedGames().done((games) => {
+        games.forEach( (game) => {
+            model.insertOwnedGame(game.appId);
+        })
+    });
 
-    // player.GetSteamLevel().done(function(result){
-        // console.log(result);
-    // });
+
 }
 
 module.exports = {
     scrape
 };
 
-scrape()
 
+// scrape()
 
-// getMyOwnedGames();
+updateOwnedGames();
