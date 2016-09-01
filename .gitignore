@@ -109,3 +109,4 @@ jspm_packages
 config.json
 cookies.json
 db.sqlite3
+*.bak

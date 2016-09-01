@@ -25,6 +25,6 @@
         "userId64": "Steam 64 ID"
     },
 
-    "cookieFile": "cookies.json",
-    "sqliteFile": "db.sqlite3"
+    "cookieFile": "config/cookies.json",
+    "sqliteFile": "config/db.sqlite3"
 }
