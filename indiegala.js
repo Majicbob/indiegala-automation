@@ -24,6 +24,7 @@ const cheerio     = require('cheerio');
 const model       = require('./model');
 const fs          = require('fs');
 const Q           = require('q');
+const colors      = require('colors');
 
 // config / globals
 const baseUrl     = nconf.get('indiegala:baseUrl');
@@ -163,7 +164,7 @@ function parseGiveawaysList() {
                 })
                 .catch((err) => {
                     console.error('Nightmare error loading giveaway list page: ');
-                    console.error(err);
+                    console.error(colors.red(err));
                     next(err, links);
                 });
         }
@@ -361,7 +362,7 @@ function gotoAndClickTicket(url) {
  * @returns {Promise}
  */
 function enterGiveaways(giveaways) {
-    console.log('Giveaways In Queue: ' + giveaways.length);
+    console.log(colors.green('Giveaways In Queue: ' + giveaways.length));
 
     const deferred = Q.defer();
 
@@ -371,7 +372,7 @@ function enterGiveaways(giveaways) {
             .then( (data) => {
                 // console.log(data);
                 if (shouldRetryGiveaway(giveaway, data, next)) {
-                    console.log('Could not dectect succsessful entery, retry');
+                    console.log('Could not dectect succsessful entery, retry'.yellow);
                     return nmInst
                         .use(gotoAndClickTicket(giveaway.url))
                         .then( (data) => {

@@ -6,6 +6,7 @@
   "dependencies": {
     "async": "^2.0.0",
     "cheerio": "^0.20.0",
+    "colors": "^1.1.2",
     "moment": "^2.14.1",
     "nconf": "^0.8.4",
     "nightmare": "^2.5.2",
@@ -24,6 +25,9 @@
   "keywords": [],
   "author": "John Tribolet II <john@tribolet.info>",
   "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/Majicbob/indiegala-automation/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/Majicbob/indiegala-automation.git"
