@@ -2,9 +2,9 @@
  * Automation of Entering IndieGala Giveaways
  *
  * Overview:
- * Login
+ * Login - Handled by the indiegala module
  * @todo Priorities & Config Options
- * Enter Giveaways
+ * Enter Giveaways - Pass an array of the urls to IG
  *
  * @author   John Tribolet <john@tribolet.info>
  * @created  2016-08-13 17:22
@@ -13,10 +13,10 @@
 'use strict';
 
 // modules
-const nconf       = require('./config');
-const model       = require('./model');
-const ig          = require('./indiegala')
-
+const nconf   = require('./config');
+const model   = require('./model');
+const ig      = require('./indiegala');
+const Q       = require('q');
 
 /**
  * Read options/preferences (to be implemented) and prioritize games accordingly
@@ -60,10 +60,6 @@ function prioritizeGiveaways() {
     return deferred.promise;
 }
 
-
-
-
-// login();
 
 prioritizeGiveaways()
     .then( ig.enterGiveaways )
