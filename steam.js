@@ -5,6 +5,7 @@
  * Get a list of distinct Steam URLs that aren't in the DB yet.
  * Load that page, grab the data, and store in the games table.
  *
+ * @module   steam
  * @author   John Tribolet <john@tribolet.info>
  * @created  2016-08-11 04:41
  */

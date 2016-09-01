@@ -13,12 +13,12 @@
 'use strict';
 
 
-const ig      = require('./indiegala');
-const steam   = require('./steam');
+const ig       = require('./indiegala');
+const steam    = require('./steam');
 const priority = require('./enter-giveaways');
 
 
-steam.updateOwnedGames();
+// steam.updateOwnedGames();
 
 ig.parseGiveawaysList()
     .then(steam.scrape);

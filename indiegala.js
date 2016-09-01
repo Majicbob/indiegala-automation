@@ -9,6 +9,7 @@
  * - Handle parsings the giveaway listings pages to get individual giveaway links
  * - Parse individual giveaway pages for details
  *
+ * @module   indiegala
  * @author   John Tribolet <john@tribolet.info>
  * @created  2016-08-08 11:22
  */
@@ -54,7 +55,6 @@ nmInst.useragent(nmConfig.userAgent);
  * @param {string[]} links  Relative links to individual giveaways
  */
 function processGiveawayPages(links) {
-
     async.each(links, (link, next) => {
         const giveawayUrl = baseUrl + link;
         request(giveawayUrl, (err, resp, body) => {
@@ -137,7 +137,14 @@ function getDataFromGiveaway() {
 
 ////////////////////////////////////////////////////////////////////
 
-
+/**
+ * Parses pages of giveaways in series, count and level set in config.
+ *
+ * On each page, grab the URLs to each Giveaway details page. Then pass the
+ * urls to {@link processGiveawayPages} for individual parsing.
+ *
+ * @returns {Promise}
+ */
 function parseGiveawaysList() {
     const deferred = Q.defer();
     // Setup local Nightmare and start processing pages
@@ -175,14 +182,10 @@ function parseGiveawaysList() {
             return;
         }
 
-        // const flatLinks = [].concat.apply([], allLinks);
-        // processGiveawayPages(flatLinks);
 
         setTimeout(() => {
-            // console.log('Call Process.exit');
             close(nmLocal);
             deferred.resolve();
-            // process.exit();
         }, 3000);
     });
 
@@ -286,9 +289,8 @@ function rndDelay(low, high) {
     return Math.floor(Math.random() * (high - low + 1) + low);
 }
 
+
 //////////////////// Enter Giveaway functions ////////////////
-
-
 
 /**
  * Next item callback for async.each style
