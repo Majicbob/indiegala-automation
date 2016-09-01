@@ -15,8 +15,20 @@
 
 const ig      = require('./indiegala');
 const steam   = require('./steam');
+const priority = require('./enter-giveaways');
+
 
 steam.updateOwnedGames();
 
 ig.parseGiveawaysList()
     .then(steam.scrape);
+
+priority
+    .prioritizeGiveaways()
+    .then( ig.enterGiveaways )
+    .then( ig.checkWins )
+    .then( ig.close )
+    .catch( (err) => {
+        console.error(err);
+        process.exit();
+    });
