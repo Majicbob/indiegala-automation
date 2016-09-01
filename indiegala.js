@@ -179,7 +179,7 @@ function parseGiveawaysList() {
 
         setTimeout(() => {
             // console.log('Call Process.exit');
-            nmLocal.end();
+            close(nmLocal);
             deferred.resolve();
             // process.exit();
         }, 3000);
@@ -459,8 +459,9 @@ function checkWins() {
 /**
  * End the Nightmare/Electron session
  */
-function close() {
-    nmInst
+function close(aNightmareInst) {
+    aNightmareInst = aNightmareInst || nmInst;
+    aNightmareInst
         .goto(baseUrl)
         .end()
         .catch((err) => {
@@ -474,4 +475,4 @@ module.exports = {
     enterGiveaways,
     parseGiveawaysList,
     close
-}
+};
