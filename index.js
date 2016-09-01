@@ -13,9 +13,9 @@
 'use strict';
 
 
-const ig       = require('./indiegala');
-const steam    = require('./steam');
-const priority = require('./enter-giveaways');
+const ig       = require('./lib/indiegala');
+const steam    = require('./lib/steam');
+const priority = require('./lib/enter-giveaways');
 
 
 // steam.updateOwnedGames();
