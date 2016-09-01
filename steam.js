@@ -105,7 +105,12 @@ function scrape() {
     return deferred.promise;
 }
 
-
+/**
+ * Syncs the Steam library tied to the API key to the local datastore.
+ *
+ * @todo Add a time check to do a full run only so often or have the module do it
+ *       based on a config file. Then add a force option for calling this extern.
+ */
 function updateOwnedGames() {
     const player = new SteamApi.Player(STEAM_API_KEY, STEAM_USER_ID);
 
@@ -119,10 +124,6 @@ function updateOwnedGames() {
 }
 
 module.exports = {
-    scrape
+    scrape,
+    updateOwnedGames
 };
-
-
-// scrape()
-
-updateOwnedGames();
